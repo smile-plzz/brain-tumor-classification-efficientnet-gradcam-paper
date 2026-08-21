@@ -1,0 +1,196 @@
+\documentclass[journal]{IEEEtran}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{CJKutf8}
+\usepackage{hyperref}
+
+\begin{document}
+
+\title{Dense EfficientNet with Grad-CAM Interpretability for Resource-Constrained Brain Tumor MRI Classification}
+
+\author{MD~Kawser~Islam, Shamin~Yeaser~Shams, and MD.~Ismail~Hossain\\
+\small Department of Electrical and Computer Engineering, North South University, Dhaka, Bangladesh\\
+\small Supervisor: Dr.\ Mohammad Monirujjaman Khan, Associate Professor, ECE Department, North South University}
+
+\maketitle
+
+\begin{abstract}
+Reliable classification of brain tumor subtypes from magnetic resonance imaging (MRI) supports faster diagnostic workflows, but many high-accuracy deep learning models assume compute budgets unavailable in resource-constrained clinical settings, and few pair their predictions with region-level explanations a radiologist can audit. We revisit a dense-layer-augmented EfficientNetB0 architecture for four-class brain tumor classification (glioma, meningioma, pituitary tumor, no tumor) on a 3,260-image T1-weighted contrast-enhanced MRI corpus, trained on a single consumer-grade GPU (NVIDIA GTX 1050, 8~GB), and pair it with Grad-CAM activation mapping for prediction-level interpretability. We compare the dense EfficientNet against a ResNet-50 baseline trained under identical preprocessing (min-max normalization, rotation/shift/zoom augmentation). The dense EfficientNet reaches 99.97\% training accuracy and correctly classifies 322 of 326 held-out test images (98.77\% test accuracy), against the ResNet-50 baseline's 314 of 326 (96.32\%) --- a directional comparison we do not treat as statistically established, since the baseline's nonstandard sigmoid output configuration and the absence of a significance test both limit what can be concluded from the gap. As a measurable resource-efficiency indicator, the dense EfficientNet uses an estimated 6.67M trainable parameters against ResNet-50's 23.5M, an approximately 3.5$\times$ reduction. Grad-CAM maps for correctly classified cases concentrate on tumor-proximal regions rather than background tissue, offering a qualitative interpretability check alongside the quantitative result. We position this result not as a state-of-the-art accuracy claim --- 2024--2026 EfficientNet-variant and hybrid CNN-Transformer studies on comparable corpora now report 99\%+ accuracy --- but as a partially-substantiated case, on parameter-count grounds, for the dense-EfficientNet design's continued relevance in interpretable, lower-resource settings; we did not measure inference-time or deployment-memory footprint, so we stop short of a full resource-efficiency claim. We report the accuracy figures as originally measured during the 2023 project and disclose that no independent retraining was performed for this revision; the figures are therefore inherited, not re-verified.
+\end{abstract}
+
+\begin{abstract}
+\begin{CJK}{UTF8}{bkai}
+從磁振造影（MRI）準確分類腦腫瘤亞型有助於加速診斷流程，但許多高準確率的深度學習模型假設臨床資源受限環境中未必具備的運算資源，且鮮少將預測結果與可供放射科醫師檢視的區域級解釋相結合。本研究重新檢視一個以密集層強化之 EfficientNetB0 架構，應用於四類腦腫瘤分類任務，使用 3,260 張 T1 加權對比增強 MRI 影像，並於單一消費級 GPU（NVIDIA GTX 1050、8GB）上訓練，同時搭配 Grad-CAM 活化映射以提供預測層級的可解釋性。密集 EfficientNet 達到 99.97\% 訓練準確率，並在 326 張保留測試影像中正確分類 322 張（測試準確率 98.77\%），相對於 ResNet-50 基準的 314/326（96.32\%）——惟此為方向性比較，非統計顯著性結果。就可測量的資源效率指標而言，密集 EfficientNet 估計使用約 667 萬個可訓練參數，相較 ResNet-50 的 2,353 萬個，約減少 3.5 倍。
+\end{CJK}
+\end{abstract}
+
+\begin{IEEEkeywords}
+brain tumor classification, EfficientNet, Grad-CAM, magnetic resonance imaging, explainable AI, resource-constrained deep learning
+\end{IEEEkeywords}
+
+\section{Introduction}
+
+Brain tumors account for a disproportionate share of cancer-related mortality relative to their incidence, in part because tumor heterogeneity makes manual radiological classification slow and dependent on specialist availability \cite{ref1,ref2}. Convolutional neural networks (CNNs) have become the dominant tool for automating tumor-type classification from MRI, and architectures built on EfficientNet \cite{ref3} have repeatedly demonstrated strong accuracy-to-parameter-count trade-offs on medical imaging tasks. Two practical gaps persist in the literature this work targets: first, most published pipelines report accuracy without reporting the hardware budget the accuracy was obtained on; second, a model's classification decision is only clinically useful if a radiologist can sanity-check which image regions drove it, which is where gradient-based visualization methods such as Grad-CAM \cite{ref4} contribute.
+
+This paper re-examines a dense-layer-augmented EfficientNetB0 classifier, originally developed as a 2023 undergraduate thesis project at North South University, for four-class brain tumor classification: glioma, meningioma, pituitary tumor, and no tumor. We report the training hardware explicitly and treat compute-efficiency, not raw accuracy, as the primary contribution; we pair predictions with Grad-CAM visualizations inspected qualitatively; and we disclose explicitly which results come from the original 2023 experiments versus new material added in this revision.
+
+\section{Related Work}
+
+\subsection{CNN-based brain tumor classification (2019--2023 baseline)}
+Cheng et al.\ \cite{ref5} used the 3,064-image T1-weighted contrast-enhanced figshare corpus underlying the dataset used here. Badza and Barjaktarovic \cite{ref6} reported 96.56\% accuracy under 10-fold cross-validation. Diaz-Pernas et al.\ \cite{ref7} achieved 97\% accuracy on 3,064 slices from 233 patients. Das et al.\ \cite{ref8} reported 94\% accuracy. Abd El Kader et al.\ \cite{ref9} reported 99.25\% training accuracy on 25,000 images.
+
+\subsection{EfficientNet variants (2023--2025)}
+Zulfiqar et al.\ \cite{ref10} fine-tuned EfficientNetB0--B4 variants for a \emph{three}-class task, reporting EfficientNetB3 reaching 99\% test accuracy; the class-count difference from this paper's four-class task is noted explicitly, since three-class and four-class figures are not directly comparable. Ishaq et al.\ \cite{ref11} modified an EfficientNet architecture for four-class classification with integrated Grad-CAM, reporting 99.39\% accuracy.
+
+\subsection{Explainability methods (2024--2025)}
+Musthafa et al.\ \cite{ref12} combined Grad-CAM with ResNet-50, reporting 98.52\% accuracy and correlating activation regions with radiological markers. Gharaibeh \cite{ref13} paired Grad-CAM with SHAP on an Xception backbone. Yoon and Lin \cite{ref14} compared LIME and Grad-CAM across VGG16, ResNet-50, and EfficientNetB0, finding EfficientNetB0 trailed the other two backbones (96\% vs.\ $>$98\%) in their reproduction.
+
+\subsection{Vision Transformer and hybrid architectures (2025)}
+Attallah and Pacal \cite{ref15} benchmarked 38 lightweight CNN/ViT architectures on 17,933 merged MRI images, with EfficientNet-B0 (98.36\%, 4.01M params) and Tiny-ViT-5M (98.41\%, 5.07M params) as top performers. Thottempudi et al.\ \cite{ref16} reported a hybrid CNN-Transformer with Aquila Optimization at 97.2\% accuracy. A ViT-B/16-based approach has also been reported \cite{ref17}, though we could not independently confirm a specific accuracy figure for it.
+
+\subsection{Positioning}
+This paper's contribution is scoped to the compute-efficiency and single-method-interpretability niche, evaluated honestly against a matched-condition ResNet-50 baseline, rather than a state-of-the-art accuracy claim.
+
+\section{Methodology}
+
+\subsection{Dataset}
+3,260 T1-weighted contrast-enhanced MRI images across four classes (glioma 926, meningioma 937, pituitary 901, no-tumor remainder) from 233 patients, sourced from the Kaggle Brain Tumor MRI Dataset built on \cite{ref18}. Split 80/20 train/test, 326 held-out test images.
+
+\subsection{Preprocessing}
+Min-max normalization:
+\begin{equation}
+r = \frac{d - mn}{mx - mn}
+\end{equation}
+following \cite{ref19} (2020; no 2022--2026 preprocessing-specific literature update was performed in this revision, a disclosed gap). Images resized (150$\times$150 EfficientNet; 224$\times$224 ResNet-50); rotation/shift/zoom augmentation on training split only.
+
+\subsection{Dense EfficientNet architecture}
+EfficientNetB0 (ImageNet-pretrained, 7 MBConv blocks) + global average pooling + four dense layers (720, 360, 360, 180 units) interleaved with three dropout layers (0.25, 0.25, 0.5) + final 4-unit softmax layer. Implementation: \texttt{src/model.py} in the accompanying repository.
+
+\subsection{ResNet-50 baseline}
+Standard ResNet-50 \cite{ref20} bottleneck design, SGD optimizer, sigmoid activation on the output layer (matching the original 2023 configuration). This is a nonstandard choice for multi-class classification and is a validity threat to the head-to-head comparison in Section~IV-A, not merely a background detail: the reported accuracy gap may partly reflect this activation-function asymmetry.
+
+\subsection{Parameter-count comparison}
+EfficientNetB0's 1,280-dim GAP output plus the dense head adds $\approx$1.38M parameters atop the $\approx$5.29M base, for an estimated total of $\approx$6.67M trainable parameters, against ResNet-50's reported 23{,}534{,}592 --- an approximately 3.5$\times$ reduction. Reported as an architecture-level estimate, not a measured runtime figure.
+
+\subsection{Training configuration}
+15 epochs, batch size 32, NVIDIA GTX 1050 (8GB), Intel Core i5 (10th gen), 16GB RAM.
+
+\subsection{Grad-CAM interpretability}
+\begin{equation}
+L^c_{\text{Grad-CAM}} = \text{ReLU}\left(\sum_k \alpha_k^c A^k\right)
+\end{equation}
+per \cite{ref4}. Implementation: \texttt{src/gradcam.py}.
+
+\section{Results and Discussion}
+
+\subsection{Corrected accuracy reporting}
+The original 2023 report contained four internally inconsistent accuracy/loss figures. We resolve this using the confusion-matrix-derived count (the only figure backed by a concrete, checkable number): 4/326 misclassified for dense EfficientNet, 12/326 for ResNet-50.
+
+\begin{table}[h]
+\centering
+\caption{Corrected performance comparison (test set, $n=326$)}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Model & Train Acc. & Test Acc. & Misclassified & Test Loss \\
+\midrule
+Dense EfficientNet & 99.97\% & 98.77\% & 4/326 & 0.0596 \\
+ResNet-50 baseline & --- & 96.32\% & 12/326 & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Statistical caveat}: with $n=326$ and 4--12 misclassifications, no formal significance test (e.g.\ McNemar's) was computed --- per-image prediction records were unavailable for this revision. Combined with the sigmoid/softmax confound (Section~III-D), we describe this gap as directional, not statistically established.
+
+\subsection{Class-specific performance}
+Pituitary tumor classified most reliably across both models; glioma the most-misclassified class, consistent with the original report's inter-class similarity explanation. Per-class precision/recall/F1 underlying computation was unavailable for independent re-derivation beyond the aggregate confusion-matrix counts.
+
+\subsection{Grad-CAM interpretability analysis}
+Heatmaps for correctly classified cases concentrate on tumor-proximal regions rather than background tissue, qualitatively consistent with \cite{ref4} and \cite{ref12}. Quantitative overlap-metric verification against annotated masks was out of scope.
+
+\subsection{Comparison against 2024--2026 literature}
+The corrected 98.77\% trails \cite{ref11} (99.39\%, four-class) and sits close to but below \cite{ref15} (98.36--98.41\%) and \cite{ref12} (98.52\%). Training-hardware disclosure for these comparators was not confirmed in the search-surfaced abstracts, so any hardware-constraint comparison is an inference from omission, not a confirmed fact.
+
+\section{Limitations}
+
+\begin{enumerate}
+\item No independent retraining; all Section~IV figures are inherited from 2023. Repository \texttt{results/} directory is currently empty.
+\item Corrected but not re-measured accuracy (internal-consistency correction only).
+\item Nonstandard ResNet-50 sigmoid activation, unchanged from original configuration.
+\item Single dataset, single split; no cross-validation or external cohort.
+\item Qualitative-only Grad-CAM interpretability check.
+\item Original figures (data-insight plots, architecture diagrams, training curves) unavailable in machine-readable form for this revision.
+\item No inference-time or memory measurement --- the resource-efficiency framing is only partially substantiated (parameter count only).
+\item No statistical significance test for the model comparison.
+\item Uncontrolled baseline comparison (sigmoid/softmax confound, Section~III-D).
+\end{enumerate}
+
+\section{Conclusion and Future Work}
+
+This paper revisited a dense-layer-augmented EfficientNetB0 classifier, trained on a single 8GB consumer GPU, against a matched-condition ResNet-50 baseline. After resolving internal inconsistencies in the original figures via the confusion-matrix-derived count, the dense EfficientNet reaches 98.77\% test accuracy against ResNet-50's 96.32\% --- a directional, not statistically controlled, finding --- with Grad-CAM activation concentrated on tumor-proximal regions for correctly classified cases. We contribute an architecture-level parameter-efficiency measurement ($\approx$6.67M vs.\ 23.5M parameters, $\approx$3.5$\times$) as partial, measurable evidence toward a resource-efficiency framing, while disclosing that inference-time and deployment-hardware claims remain unmeasured.
+
+Future work: (1) independent retraining with a corrected softmax ResNet-50 baseline and a formal significance test; (2) inference-time/memory benchmarking; (3) quantitative Grad-CAM overlap metrics against annotated masks; (4) a second XAI method (SHAP/LIME) per \cite{ref13,ref14}; (5) a lightweight ViT/hybrid comparison point per \cite{ref15}; (6) external validation on an independent-source dataset.
+
+\section*{Data Availability Statement}
+Dataset: publicly available Kaggle Brain Tumor MRI Dataset, derived from \cite{ref18}. Code: \url{github.com/smile-plzz/brain-tumor-classification-efficientnet-gradcam}. Trained checkpoints and \texttt{results/} outputs are not currently populated in the repository (Limitation~1).
+
+\section*{Ethics Declaration}
+Publicly available, de-identified MRI dataset; no new human-subject data collection; no institutional ethics review required.
+
+\section*{Author Contributions (CRediT)}
+MD Kawser Islam: Methodology, Software, Investigation, Original 2023 draft. Shamin Yeaser Shams: Methodology, Software, Investigation, Original 2023 draft. MD. Ismail Hossain: Methodology, Software, Investigation, Original 2023 draft, Writing -- review \& editing (2026 revision), Project administration (2026 revision). Dr. Mohammad Monirujjaman Khan: Supervision, Validation.
+
+\section*{Conflict of Interest Statement}
+The authors declare no conflict of interest.
+
+\section*{Funding Acknowledgment}
+No external funding was received for this project.
+
+\section*{AI Disclosure Statement}
+This 2026 revision was drafted with AI assistance (Claude, Anthropic) under the academic-research-skills pipeline, using the original 2023 thesis text, the accompanying code repository, and an AI-assisted literature search as source material. AI-assisted work included literature search/synthesis, prose rewriting, the accuracy-figure reconciliation (Section~IV-A), the parameter-count estimate (Section~III-E), and citation verification via CrossRef. A human author (MD. Ismail Hossain) reviewed and is responsible for the final content.
+
+\begin{thebibliography}{20}
+
+\bibitem{ref1} A. Pradhan, D. Mishra, K. Das, G. Panda, S. Kumar, and M. Zymbler, ``On the Classification of MR Images Using `ELM-SSA' Coated Hybrid Model,'' \emph{Mathematics}, vol. 9, no. 9, p. 2095, 2021.
+
+\bibitem{ref2} A. V. N. Reddy, C. P. Krishna, P. K. Mallick, S. K. Satapathy, P. Tiwari, M. Zymbler, and S. Kumar, ``Analyzing MRI scans to detect glioblastoma tumor using hybrid deep belief networks,'' \emph{J. Big Data}, vol. 7, p. 35, 2020.
+
+\bibitem{ref3} M. Tan and Q. V. Le, ``EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks,'' \emph{arXiv preprint arXiv:1905.11946}, 2019.
+
+\bibitem{ref4} R. R. Selvaraju, M. Cogswell, A. Das, R. Vedantam, D. Parikh, and D. Batra, ``Grad-CAM: Visual explanations from deep networks via gradient-based localization,'' in \emph{Proc. IEEE ICCV}, 2017, pp. 618--626.
+
+\bibitem{ref5} J. Cheng, W. Huang, S. Cao, R. Yang, W. Yang, Z. Yun, Z. Wang, and Q. Feng, ``Enhanced performance of brain tumor classification via tumor region augmentation and partition,'' \emph{PLoS ONE}, vol. 10, e0144479, 2015.
+
+\bibitem{ref6} M. M. Badza and M. C. Barjaktarovic, ``Classification of brain tumors from MRI images using a convolutional neural network,'' \emph{Appl. Sci.}, vol. 10, p. 1999, 2020.
+
+\bibitem{ref7} F. J. Diaz-Pernas, M. Martinez-Zarzuela, M. Anton-Rodriguez, and D. Gonzalez-Ortega, ``A deep learning approach for brain tumor classification and segmentation using a multiscale convolutional neural network,'' \emph{Healthcare}, vol. 9, p. 153, 2021.
+
+\bibitem{ref8} S. Das, O. R. Aranya, and N. N. Labiba, ``Brain tumor classification using a convolutional neural network,'' in \emph{Proc. ICASERT}, 2019, pp. 1--5.
+
+\bibitem{ref9} I. Abd El Kader, G. Xu, Z. Shuai, S. Saminu, I. Javaid, and I. Salim Ahmad, ``Differential deep convolutional neural network model for brain tumor classification,'' \emph{Brain Sci.}, vol. 11, p. 352, 2021.
+
+\bibitem{ref10} F. Zulfiqar, U. I. Bajwa, and Y. Mehmood, ``Multi-class classification of brain tumor types from MR images using EfficientNets,'' \emph{Biomed. Signal Process. Control}, vol. 84, art. 104777, Jul. 2023, doi: 10.1016/j.bspc.2023.104777.
+
+\bibitem{ref11} A. Ishaq, F. U. M. Ullah, P. Hamandawana, D.-J. Cho, and T.-S. Chung, ``Improved EfficientNet Architecture for Multi-Grade Brain Tumor Detection,'' \emph{Electronics}, vol. 14, no. 4, art. 710, Feb. 2025, doi: 10.3390/electronics14040710.
+
+\bibitem{ref12} M. Musthafa, T. R. Mahesh, V. Vinoth Kumar, and S. Guluwadi, ``Enhancing brain tumor detection in MRI images through explainable AI using Grad-CAM with ResNet-50,'' \emph{BMC Med. Imaging}, vol. 24, art. 107, May 2024, doi: 10.1186/s12880-024-01292-7.
+
+\bibitem{ref13} Y. Gharaibeh, ``Enhancing interpretability in brain tumor detection: Leveraging Grad-CAM and SHAP for explainable AI in MRI-based cancer diagnosis,'' \emph{Appl. Comput. Sci.}, Sep. 2025, doi: 10.35784/acs\_7375.
+
+\bibitem{ref14} Yoon and Lin, ``Brain Tumor Classification in MRI: Insights From LIME and Grad-CAM Explainable AI Techniques,'' \emph{IEEE Access}, 2025, doi: 10.1109/ACCESS.2025.3603272.
+
+\bibitem{ref15} O. Attallah and I. Pacal, ``Comparative evaluation of lightweight convolutional neural network and vision transformer models for multi-class brain tumor classification using merged large MRI datasets,'' \emph{Chemometrics Intell. Lab. Syst.}, Feb. 2026, doi: 10.1016/j.chemolab.2025.105609.
+
+\bibitem{ref16} Thottempudi et al., ``An Explainable Hybrid CNN--Transformer Framework with Aquila Optimization for MRI-Based Brain Tumor Classification,'' \emph{medRxiv preprint}, Oct. 2025, doi: 10.1101/2025.10.14.25338038. [Preprint, not peer-reviewed.]
+
+\bibitem{ref17} Hong, Wu, and Zhu, ``A Brain Tumor Classification algorithm based on VIT-B/16,'' in \emph{Proc. 2024 36th CCDC}, May 2024, doi: 10.1109/CCDC62350.2024.10587761. [Candidate match; specific accuracy figure not independently confirmed --- verify before treating as established.]
+
+\bibitem{ref18} J. Cheng, ``Brain tumor dataset,'' \emph{Figshare}, 2017. Available: https://figshare.com/articles/dataset/brain\_tumor\_dataset/1512427
+
+\bibitem{ref19} D. R. Nayak, N. Padhy, and B. K. Swain, ``Brain Tumor Detection and Extraction using Type-2 Fuzzy with Morphology,'' \emph{Int. J. Emerg. Technol.}, vol. 11, pp. 840--844, 2020.
+
+\bibitem{ref20} K. He, X. Zhang, S. Ren, and J. Sun, ``Deep Residual Learning for Image Recognition,'' in \emph{Proc. IEEE CVPR}, 2016, pp. 770--778.
+
+\end{thebibliography}
+
+\end{document}
