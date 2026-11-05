@@ -1,8 +1,9 @@
 # Dense EfficientNet with Grad-CAM Interpretability for Resource-Constrained Brain Tumor MRI Classification
 
-**Authors**: MD Kawser Islam, Shamin Yeaser Shams, MD. Ismail Hossain
-**Affiliation**: Department of Electrical and Computer Engineering, North South University, Dhaka, Bangladesh
-**Supervisor**: Dr. Mohammad Monirujjaman Khan, Associate Professor, ECE Department, North South University
+**Authors**: MD Kawser Islam, Shamin Yeaser Shams, MD. Ismail Hossain*  
+**Affiliation**: Department of Electrical and Computer Engineering, North South University, Dhaka, Bangladesh  
+**Supervisor**: Dr. Mohammad Monirujjaman Khan, Associate Professor, ECE Department, North South University  
+**Corresponding Contact (MD. Ismail Hossain)**: [ismailhossain013@gmail.com](mailto:ismailhossain013@gmail.com) | [Portfolio](https://smile-plzz.github.io/Ismail_Hossain/) | [GitHub](https://github.com/smile-plzz) | [LinkedIn](https://www.linkedin.com/in/md-ismail-hossain-2938541b1/) | [Facebook](https://www.facebook.com/optimisticyetpessimist/)
 
 ---
 
